@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import requests
+from huggingface_hub import InferenceClient
 import os
 
 app = FastAPI()
 
-HF_API_KEY = os.getenv("HF_API_KEY")
+client = InferenceClient(token=os.getenv("HF_API_KEY"))
 
 class Request(BaseModel):
     prompt: str
@@ -17,18 +17,13 @@ def home():
 @app.post("/ai")
 def ai(req: Request):
     try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/google/flan-t5-large",
-            headers={"Authorization": f"Bearer {HF_API_KEY}"},
-            json={"inputs": req.prompt}
+        response = client.text_generation(
+            model="google/flan-t5-large",
+            prompt=req.prompt,
+            max_new_tokens=200
         )
 
-        data = response.json()
-
-        return {
-            "reply": data[0]["generated_text"] if isinstance(data, list)
-            else data.get("generated_text", "No response")
-        }
+        return {"reply": response}
 
     except Exception as e:
         return {"reply": "AI error", "error": str(e)}
